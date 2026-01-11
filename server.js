@@ -2,15 +2,16 @@ import express from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import NodeCache from "node-cache";
-import animeApi from "@justalk/anime-api";
+import animeApi from "@justalk/anime-api"; // GitHub repo se install
 
 const app = express();
 const cache = new NodeCache({ stdTTL: 600 }); // 10 min cache
 
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-/* 🔐 Rate limit */
+// Rate limit: 20 requests per minute
 const limiter = rateLimit({
   windowMs: 60 * 1000,
   max: 20,
@@ -18,26 +19,21 @@ const limiter = rateLimit({
 });
 app.use("/api/", limiter);
 
-/* 🔑 API key middleware */
+// API Key check
 app.use("/api", (req, res, next) => {
-  const key = req.query.key;
-  if (key !== process.env.API_KEY) {
+  if (req.query.key !== process.env.API_KEY) {
     return res.status(403).json({ error: "Invalid API Key" });
   }
   next();
 });
 
-/* 🎥 Stream endpoint */
+// Stream endpoint
 app.get("/api/stream", async (req, res) => {
   const { name, ep } = req.query;
-  if (!name || !ep) {
-    return res.status(400).json({ error: "Missing name or episode" });
-  }
+  if (!name || !ep) return res.status(400).json({ error: "Missing name or episode" });
 
   const cacheKey = `${name}-${ep}`;
-  if (cache.has(cacheKey)) {
-    return res.json(cache.get(cacheKey));
-  }
+  if (cache.has(cacheKey)) return res.json(cache.get(cacheKey));
 
   try {
     const data = await animeApi.stream(name, Number(ep));
@@ -49,12 +45,9 @@ app.get("/api/stream", async (req, res) => {
   }
 });
 
-/* 🟢 Health check */
-app.get("/", (req, res) => {
-  res.send("Anime API is running 🚀");
-});
+// Health check
+app.get("/", (req, res) => res.send("Anime API is running 🚀"));
 
+// Start server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () =>
-  console.log(`Server running on port ${PORT}`)
-);
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
